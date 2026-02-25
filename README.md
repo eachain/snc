@@ -89,8 +89,8 @@ USER发命令给LINUX执行，数据传输走PROXY。
 编译填充默认值方式：
 
 - jumper: main.go:11 tag添加`dft:"jump.server.host:port"`；
-- user: main.go:12 tag添加`dft:"USER"`。
-- proxy: main.go:14 tag添加`dft:"proxy.host:port"`
+- user: main.go:12 tag添加`dft:"USER"`；
+- proxy: main.go:14 tag添加`dft:"proxy.host:port"`。
 
 用`alias`设置默认值的方式：
 
