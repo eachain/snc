@@ -42,14 +42,15 @@ USER发命令给LINUX执行，数据传输走PROXY。
 
 使用示例：
 
-`snc f redis-host:6379 linux.host.name`
+`snc f redis.host:6379 linux.host.name`
 
 原理：
 
-- 假设需要映射的数据库地址为`DEST`；
-- 在PROXY申请两个数据通道`CHANNEL1`和`CHANNEL2`；
-- 在LINUX执行`nc --recv-only CHANNEL1 | nc DEST | nc --send-only CHANNEL2`；
-- 本地写数据到`CHANNEL1`，从`CHANNEL2`读数据。
+- 假设需要映射的数据库地址为`REDIS:PORT`；
+- 本地监听`127.0.0.1:PORT`，等待TCP连接；
+- 连接进来后，在PROXY申请两个数据通道`CHANNEL1`和`CHANNEL2`；
+- 在LINUX执行`nc --recv-only CHANNEL1 | nc REDIS PORT | nc --send-only CHANNEL2`；
+- 本地连接写数据到`CHANNEL1`，从`CHANNEL2`读数据写回本地连接。
 
 ## 文件传输
 
@@ -81,7 +82,7 @@ USER发命令给LINUX执行，数据传输走PROXY。
 
 可简单地以`nohup ./sncd &`方式启动。默认监听端口"65533"，如果需要改动，需要添加启动参数`-p YOUR_PORT`。
 
-## snc编译
+## snc默认值
 
 为方便使用，snc命令的部分参数可以在编译时写入合适的默认值，或用`alias`命令设置默认值。
 
