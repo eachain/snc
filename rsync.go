@@ -8,7 +8,6 @@ import (
 	"os"
 	"os/exec"
 	"strings"
-	"sync"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -71,7 +70,7 @@ func Rsync(ctx context.Context, opts *RsyncOptions) {
 	}
 	defer listener.Close()
 
-	wait, err := StartRsync(ctx, listener.Addr().String(), opts)
+	wait, cancel, err := StartRsync(ctx, listener.Addr().String(), opts)
 	if err != nil {
 		return
 	}
@@ -87,31 +86,25 @@ func Rsync(ctx context.Context, opts *RsyncOptions) {
 
 	conn, chans, reqs, err := ssh.NewServerConn(rsync, config)
 	if err != nil {
-		fmt.Fprintf(os.Stderr, "failed to handshake: %v", err)
+		fmt.Fprintf(os.Stderr, "failed to handshake: %v\n", err)
 		return
 	}
 	defer conn.Close()
 
-	wg := new(sync.WaitGroup)
-	defer wg.Wait()
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
-		ssh.DiscardRequests(reqs)
-	}()
+	go ssh.DiscardRequests(reqs)
 
 	for newChannel := range chans {
-		wg.Add(1)
-		go handleChannel(wg, newChannel, client, opts.Remote)
+		if !handleChannel(newChannel, client, opts.Remote) && cancel != nil {
+			cancel()
+			break
+		}
 	}
 }
 
-func handleChannel(wg *sync.WaitGroup, newChannel ssh.NewChannel, client *SSHClient, remote string) {
-	defer wg.Done()
-
+func handleChannel(newChannel ssh.NewChannel, client *SSHClient, remote string) bool {
 	if newChannel.ChannelType() != "session" {
 		newChannel.Reject(ssh.UnknownChannelType, "unknown channel type")
-		return
+		return false
 	}
 
 	if idx := strings.IndexByte(remote, ':'); idx >= 0 {
@@ -120,7 +113,7 @@ func handleChannel(wg *sync.WaitGroup, newChannel ssh.NewChannel, client *SSHCli
 
 	ss, err := client.NewSession(remote)
 	if err != nil {
-		return
+		return false
 	}
 	defer ss.Close()
 	defer ss.Stdin.Close()
@@ -128,7 +121,7 @@ func handleChannel(wg *sync.WaitGroup, newChannel ssh.NewChannel, client *SSHCli
 	channel, requests, err := newChannel.Accept()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "accept channel: %v\n", err)
-		return
+		return false
 	}
 	defer channel.Close()
 
@@ -145,9 +138,10 @@ func handleChannel(wg *sync.WaitGroup, newChannel ssh.NewChannel, client *SSHCli
 			}
 		}
 		if err != nil {
-			return
+			return false
 		}
 	}
+	return true
 }
 
 func setEnv(ss *SSHSession, req *ssh.Request) error {
@@ -239,11 +233,11 @@ func execCmd(ss *SSHSession, req *ssh.Request, channel ssh.Channel) error {
 	return nil
 }
 
-func StartRsync(ctx context.Context, address string, opts *RsyncOptions) (func() error, error) {
+func StartRsync(ctx context.Context, address string, opts *RsyncOptions) (func() error, func() error, error) {
 	_, port, err := net.SplitHostPort(address)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "split local listen address %q: %v\n", address, err)
-		return nil, err
+		return nil, nil, err
 	}
 	args := []string{
 		"-avzhP",
@@ -273,7 +267,7 @@ func StartRsync(ctx context.Context, address string, opts *RsyncOptions) (func()
 	err = cmd.Start()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "start rsync: %v\n", err)
-		return nil, err
+		return nil, nil, err
 	}
-	return cmd.Wait, nil
+	return cmd.Wait, cmd.Cancel, nil
 }
