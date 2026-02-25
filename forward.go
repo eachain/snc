@@ -11,8 +11,8 @@ import (
 )
 
 type ForwardOptions struct {
-	Server string `desc:"the server address forward to, format: 'host:port'"`
-	Remote string `desc:"the remote host name or ip forward via"`
+	Server string `required:"true" desc:"the server address forward to, format: 'host:port'"`
+	Remote string `required:"true" desc:"the remote host name or ip forward via"`
 	Listen string `short:"l" long:"listen" desc:"local listen address, default is the port of server address"`
 }
 

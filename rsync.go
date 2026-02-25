@@ -16,22 +16,31 @@ import (
 type RsyncOptions struct {
 	Listen string `short:"l" long:"listen" dft:"65222" desc:"local ssh server listen address"`
 	Update bool   `short:"u" long:"update" desc:"skip files that are newer on the receiver"`
-	Remote string `desc:"the remote or target, if remote, then download, else upload"`
+	Remote string `required:"true" desc:"the remote or target, if remote, then download, else upload"`
 	Target string `desc:"the remote or target"`
 
 	upload bool
 }
 
 func Rsync(ctx context.Context, opts *RsyncOptions) {
-	if _, err := os.Stat(opts.Remote); err == nil {
-		opts.Remote, opts.Target = opts.Target, opts.Remote
+	if strings.Contains(opts.Remote, ":") { // download
+	} else if strings.Contains(opts.Target, ":") { // upload
 		opts.upload = true
-	}
-	if opts.upload {
+		opts.Remote, opts.Target = opts.Target, opts.Remote
 		if _, err := os.Stat(opts.Target); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 			return
 		}
+	} else if _, err := os.Stat(opts.Remote); err == nil { // upload
+		opts.upload = true
+		opts.Remote, opts.Target = opts.Target, opts.Remote
+		if opts.Remote == "" {
+			fmt.Fprintln(os.Stderr, "no remote specified")
+			return
+		}
+	} else { // download
+		fmt.Fprintln(os.Stderr, "no file specified")
+		return
 	}
 
 	config := &ssh.ServerConfig{
