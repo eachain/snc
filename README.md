@@ -56,11 +56,11 @@ USER发命令给LINUX执行，数据传输走PROXY。
 
 上传示例：
 
-`snc f local/file/path linux.host.name:remote/file/path`
+`snc r local/file/path linux.host.name:remote/file/path`
 
 下载示例：
 
-`snc f linux.host.name:remote/file/path local/file/path`
+`snc r linux.host.name:remote/file/path local/file/path`
 
 原理：
 
