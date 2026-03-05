@@ -94,4 +94,4 @@ USER发命令给LINUX执行，数据传输走PROXY。
 
 用`alias`设置默认值的方式：
 
-`alias snc='snc --jumper jump.server.host:port --user USER' --proxy proxy.host:port`
+`alias snc='snc --jumper jump.server.host:port --user USER --proxy proxy.host:port'`
